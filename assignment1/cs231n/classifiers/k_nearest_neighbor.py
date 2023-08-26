@@ -76,7 +76,8 @@ class KNearestNeighbor(object):
                 # not use a loop over dimension, nor use np.linalg.norm().          #
                 #####################################################################
                 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+                # 计算x[i]与self.x_train[j]之间的distance
+                dists[i, j] = np.sqrt(np.sum(np.square(X[i] - self.X_train[j])))
                 pass
 
                 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -100,7 +101,8 @@ class KNearestNeighbor(object):
             # Do not use np.linalg.norm().                                        #
             #######################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+            # 利用broadcast性质计算distance
+            dists[i, :] = np.sqrt(np.sum(np.square(X[i] - self.X_train), axis=1))
             pass
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -130,7 +132,17 @@ class KNearestNeighbor(object):
         #       and two broadcast sums.                                         #
         #########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        # 利用broadcast性质计算distance
+        # 说明：
+        # X的维度是N_test*D, X_train的维度是N_train*D
+        # 分别计算(x-y)^2 = x^2 + y^2 - 2*x*y
+        # np.sum中参数keepdims=True: reduced axes are left with size one
+        part_X = np.sum(np.square(X), axis=1, keepdims=True)
+        part_X_train = np.sum(np.square(self.X_train), axis=1)
+        part_cross = -2 * X@self.X_train.T
+        
+        dists = np.sqrt(part_X + part_X_train + part_cross)
+        
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -163,7 +175,8 @@ class KNearestNeighbor(object):
             # Hint: Look up the function numpy.argsort.                             #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+            k_min_ind = np.argsort(dists[i])[:k]
+            closest_y = self.y_train[k_min_ind]
             pass
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -175,7 +188,9 @@ class KNearestNeighbor(object):
             # label.                                                                #
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+            # 计算每个X周围的k个nearest neighbors(training samples)中每种类型出现的次数
+            # 选出现次数最多的那个作为X的分类类型
+            y_pred[i] = np.argmax(np.bincount(closest_y))
             pass
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
