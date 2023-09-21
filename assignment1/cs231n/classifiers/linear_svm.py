@@ -35,8 +35,19 @@ def svm_loss_naive(W, X, y, reg):
             if j == y[i]:
                 continue
             margin = scores[j] - correct_class_score + 1  # note delta = 1
+            ####################################################
+            #                    rk's mark                     #
+            # margin = scores[j] - scores[y[i]] + 1            #
+            # so, don't forget to differentiate 'scores[y[i]]' #
+            ####################################################
+            
             if margin > 0:
                 loss += margin
+                ###################################
+                #           rk's solution         #
+                dW[:,j] += np.transpose(X[i])
+                dW[:,y[i]] -= np.transpose(X[i])
+                ###################################
 
     # Right now the loss is a sum over all training examples, but we want it
     # to be an average instead so we divide by num_train.
@@ -54,7 +65,8 @@ def svm_loss_naive(W, X, y, reg):
     # code above to compute the gradient.                                       #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    dW /= num_train
+    dW += 2 * reg * W
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -77,7 +89,14 @@ def svm_loss_vectorized(W, X, y, reg):
     # result in loss.                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    N = len(y)
+    scores = X @ W
+    correct_scores = scores[np.arange(N), y]
+    margins = scores - correct_scores.reshape((-1, 1)) + 1
+    mask = (margins > 0).astype(int)
+    margins *= mask
+    loss = np.sum(margins) / N -1 + reg * np.sum(W**2) 
+    # [rk]:'-1' is used to reduce margins come from correct_scores 
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -92,7 +111,11 @@ def svm_loss_vectorized(W, X, y, reg):
     # loss.                                                                     #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    dW = mask    # gradient with respect to scores matrix
+    dW[range(N), y] -= dW.sum(axis=1) # update gradient to include correct labels
+    dW = X.T @ dW / N + 2 * reg * W 
 
+    # dW += 2 * reg * W
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
