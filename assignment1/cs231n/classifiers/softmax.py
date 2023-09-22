@@ -36,7 +36,7 @@ def softmax_loss_naive(W, X, y, reg):
     N = y.shape[0]
     for i in range(N):
         score_i = X[i] @ W
-        nominator = np.exp(score_i)
+        nominator = np.exp(score_i - score_i.max())
         denominator = np.sum(nominator)
         prob_i = nominator / denominator
         prob_yi = prob_i[y[i]]
@@ -81,19 +81,19 @@ def softmax_loss_vectorized(W, X, y, reg):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     N = y.shape[0]
     scores = X @ W
-    exp = np.exp(scores)
+    exp = np.exp(scores - scores.max(axis=1).reshape(-1, 1))   # stabilize exponents
     prob = exp / (np.sum(exp, axis=1)).reshape(-1, 1)
     prob_correct = prob[range(N), y]
     loss = - np.sum(np.log(prob_correct)) / N + reg * np.sum(W**2)
     
     # after this change, dW is partial of Loss(without reg item) over score matrix
-    prob[range(N), y] -= prob_correct
-    dW = (- 1 / prob_correct).reshape(-1, 1) * prob 
+    partial_prob_score = -prob * prob_correct.reshape(-1, 1)
+    partial_prob_score[range(N), y] += prob_correct
+    dW = (- 1 / prob_correct).reshape(-1, 1) * partial_prob_score
     
     # after this change, dW is partial of Loss over W
     dW = X.T @ dW
-    dW /= N
-    dW += 2 * reg * W    
+    dW = dW / N + 2 * reg * W  
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
