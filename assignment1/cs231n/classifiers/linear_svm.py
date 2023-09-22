@@ -111,11 +111,10 @@ def svm_loss_vectorized(W, X, y, reg):
     # loss.                                                                     #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-    dW = mask    # gradient with respect to scores matrix
-    dW[range(N), y] -= dW.sum(axis=1) # update gradient to include correct labels
+    dW = mask
+    dW[range(N), y] -= dW.sum(axis=1)
     dW = X.T @ dW / N + 2 * reg * W 
 
-    # dW += 2 * reg * W
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
