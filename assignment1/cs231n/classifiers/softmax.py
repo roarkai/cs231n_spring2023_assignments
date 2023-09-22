@@ -33,7 +33,28 @@ def softmax_loss_naive(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    N = y.shape[0]
+    for i in range(N):
+        score_i = X[i] @ W
+        nominator = np.exp(score_i)
+        denominator = np.sum(nominator)
+        prob_i = nominator / denominator
+        prob_yi = prob_i[y[i]]
+        loss_i = -np.log(prob_yi)
+        
+        partial_prob_score = -prob_yi*prob_i
+        partial_prob_score[y[i]] += prob_yi
+        
+        dW_i = -X[i].reshape(-1, 1) @ partial_prob_score.reshape(1, -1) / prob_yi
+        
+        loss += loss_i
+        dW += dW_i
+        
+    loss /= N
+    loss += reg * np.sum(W**2)
+    
+    dW /= N
+    dW += 2 * reg * W
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -58,7 +79,21 @@ def softmax_loss_vectorized(W, X, y, reg):
     # regularization!                                                           #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    N = y.shape[0]
+    scores = X @ W
+    exp = np.exp(scores)
+    prob = exp / (np.sum(exp, axis=1)).reshape(-1, 1)
+    prob_correct = prob[range(N), y]
+    loss = - np.sum(np.log(prob_correct)) / N + reg * np.sum(W**2)
+    
+    # after this change, dW is partial of Loss(without reg item) over score matrix
+    prob[range(N), y] -= prob_correct
+    dW = (- 1 / prob_correct).reshape(-1, 1) * prob 
+    
+    # after this change, dW is partial of Loss over W
+    dW = X.T @ dW
+    dW /= N
+    dW += 2 * reg * W    
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
