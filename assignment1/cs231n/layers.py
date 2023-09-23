@@ -27,7 +27,8 @@ def affine_forward(x, w, b):
     # will need to reshape the input into rows.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    x_2D = x.reshape((x.shape[0], -1))
+    out = x_2D @ w + b
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -61,6 +62,12 @@ def affine_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
+    db = np.sum(dout, axis=0)
+    
+    x_2D = x.reshape((x.shape[0], -1))
+    dw = x_2D.T @ dout
+    
+    dx = (dout @ w.T).reshape(x.shape)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -86,7 +93,7 @@ def relu_forward(x):
     # TODO: Implement the ReLU forward pass.                                  #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    out = np.maximum(0, x)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -113,7 +120,7 @@ def relu_backward(dout, cache):
     # TODO: Implement the ReLU backward pass.                                 #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    dx = (x > 0) * dout
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -742,7 +749,7 @@ def spatial_groupnorm_backward(dout, cache):
     # This will be extremely similar to the layer norm implementation.        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -772,8 +779,14 @@ def svm_loss(x, y):
     # TODO: Copy over your solution from A1.
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    N = y.shape[0]
+    correct_s = x[range(N), y]
+    margin = x - correct_s.reshape((-1, 1)) + 1
+    mask = (margin > 0).astype(int)
+    loss = np.sum(mask * margin) / N - 1
+    
+    mask[range(N), y] -= mask.sum(axis=1)
+    dx = mask / N
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -802,8 +815,17 @@ def softmax_loss(x, y):
     # TODO: Copy over your solution from A1.
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    N = y.shape[0]
+    exp = np.exp(x - x.max(axis=1).reshape(-1, 1)) # 对梯度没有影响，相当于让exp每个元素都除常数exp(x.max)
+    prob = exp / exp.sum(axis=1).reshape(-1, 1)
+    prob_correct = prob[range(N), y]
+    loss = -np.sum(np.log(prob_correct)) / N
+    
+    partial_prob_correct = -1 / prob_correct
+    partial_prob_over_score = -prob * prob_correct.reshape(-1, 1)
+    partial_prob_over_score[range(N), y] += prob_correct
+    dx = partial_prob_correct.reshape(-1, 1) * partial_prob_over_score / N
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################

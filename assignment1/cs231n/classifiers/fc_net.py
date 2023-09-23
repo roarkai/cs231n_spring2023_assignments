@@ -54,7 +54,11 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W2' and 'b2'.                         #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        D, H, C = input_dim, hidden_dim, num_classes
+        self.params['W1'] = np.random.randn(D, H) * weight_scale
+        self.params['W2'] = np.random.randn(H, C) * weight_scale
+        self.params['b1'] = np.zeros(H)
+        self.params['b2'] = np.zeros(C)
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -87,7 +91,17 @@ class TwoLayerNet(object):
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        
+        W1 = self.params['W1']
+        b1 = self.params['b1']
+        W2 = self.params['W2']
+        b2 = self.params['b2']
+        
+        # affine relu layer
+        aff_relu_out, aff_relu_cache = affine_relu_forward(X, W1, b1)
+        
+        # the second affine layer
+        scores, aff_2nd_cache = affine_forward(aff_relu_out, W2, b2)
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -111,7 +125,21 @@ class TwoLayerNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        
+        loss, dx_scores = softmax_loss(scores, y)
+        loss += 0.5 * self.reg * (np.sum(W1**2) + np.sum(W2**2))
+        
+        dx_aff2, dW2, db2 = affine_backward(dx_scores, aff_2nd_cache)
+        dx_aff_relu, dW1, db1 = affine_relu_backward(dx_aff2, aff_relu_cache)
+        
+        dW2 += self.reg * W2
+        dW1 += self.reg * W1
+        
+        grads['W1'] = dW1
+        grads['b1'] = db1
+        grads['W2'] = dW2
+        grads['b2'] = db2
+        
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
