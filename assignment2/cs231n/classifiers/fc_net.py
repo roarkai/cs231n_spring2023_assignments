@@ -73,8 +73,37 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        input_dims = [input_dim] + hidden_dims
+        output_dims = hidden_dims + [num_classes]
+        dims = zip(input_dims, output_dims)
+        
+        for ind, (input_dim, output_dim) in enumerate(dims):
+            # initialize weight and bias
+            self.params[f'W{ind + 1}'] = np.random.randn(input_dim, output_dim) * weight_scale
+            self.params[f'b{ind + 1}'] = np.zeros(output_dim)
+            
+            # initializa beta and gamma for batchnorm
+            if self.normalization == 'batchnorm' and ind < self.num_layers - 1:
+                self.params[f'beta{ind + 1}'] = np.ones(output_dim)
+                self.params[f'gamma{ind + 1}'] = np.zeros(output_dim)
+        
+        # 注意层数关系：
+        # num_layers = L = len(hidden_layer) + 1，因为除了hidden layer之外还有一层affine
+        # softmax不计入layer count
+        # len(hidden_layers)是hidden layer的层数，hidden layer的最后一层affine是scores，不做batchnorm
+        # 所以，batchnorm只做到score的前一层，所以只做完第(L-1)那一层
+        
+        ############################################################################
+        #   Input:         D     h[0]   ...    h[L-3]    h[L-2]     C              #
+        #                  |      |              |        |                        #
+        #                  w1    w2     ...     wL-1      wL        -              #
+        #                  |      |              |        |                        #
+        #   Output:       h[0]   h[1]   ...    h[L-2]     C         C              #
+        #                                                 ^scores   ^softmax       #
+        #   No.layer:      1      2             L-1       L         不计入layer数   # 
+        #   Batchnorm：   Yes    Yes            Yes       No        No             #
+        ############################################################################
 
-        pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -147,7 +176,17 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        
+        W1 = self.params['W1']
+        b1 = self.params['b1']
+        W2 = self.params['W2']
+        b2 = self.params['b2']
+        
+        # affine relu layer
+        aff_relu_out, aff_relu_cache = affine_relu_forward(X, W1, b1)
+        
+        # the second affine layer
+        scores, aff_2nd_cache = affine_forward(aff_relu_out, W2, b2)
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -174,7 +213,19 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        loss, dx_scores = softmax_loss(scores, y)
+        loss += 0.5 * self.reg * (np.sum(W1**2) + np.sum(W2**2))
+        
+        dx_aff2, dW2, db2 = affine_backward(dx_scores, aff_2nd_cache)
+        dx_aff_relu, dW1, db1 = affine_relu_backward(dx_aff2, aff_relu_cache)
+        
+        dW2 += self.reg * W2
+        dW1 += self.reg * W1
+        
+        grads['W1'] = dW1
+        grads['b1'] = db1
+        grads['W2'] = dW2
+        grads['b2'] = db2
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****

@@ -24,7 +24,8 @@ def affine_forward(x, w, b):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    x_2D = x.reshape((x.shape[0], -1))
+    out = x_2D @ w + b
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -56,7 +57,12 @@ def affine_backward(dout, cache):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    db = np.sum(dout, axis=0)
+    
+    x_2D = x.reshape((x.shape[0], -1))
+    dw = x_2D.T @ dout
+    
+    dx = (dout @ w.T).reshape(x.shape)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -81,6 +87,7 @@ def relu_forward(x):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    out = np.maximum(0, x)
 
     pass
 
@@ -107,6 +114,7 @@ def relu_backward(dout, cache):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    dx = (x > 0) * dout
 
     pass
 
@@ -136,7 +144,16 @@ def softmax_loss(x, y):
     # TODO: Copy over your solution from Assignment 1.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    N = y.shape[0]
+    exp = np.exp(x - x.max(axis=1).reshape(-1, 1)) # 对梯度没有影响，相当于让exp每个元素都除常数exp(x.max)
+    prob = exp / exp.sum(axis=1).reshape(-1, 1)
+    prob_correct = prob[range(N), y]
+    loss = -np.sum(np.log(prob_correct)) / N
+    
+    partial_prob_correct = -1 / prob_correct
+    partial_prob_over_score = -prob * prob_correct.reshape(-1, 1)
+    partial_prob_over_score[range(N), y] += prob_correct
+    dx = partial_prob_correct.reshape(-1, 1) * partial_prob_over_score / N
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
