@@ -96,14 +96,13 @@ class FullyConnectedNet(object):
         ############################################################################
         #   Input:         D     h[0]   ...    h[L-3]    h[L-2]     C              #
         #                  |      |              |        |                        #
-        #                  w1    w2     ...     wL-1      wL        -              #
+        #   weights:       w1    w2     ...     wL-1      wL        -              #
         #                  |      |              |        |                        #
         #   Output:       h[0]   h[1]   ...    h[L-2]     C         C              #
         #                                                 ^scores   ^softmax       #
         #   No.layer:      1      2             L-1       L         不计入layer数   # 
         #   Batchnorm：   Yes    Yes            Yes       No        No             #
         ############################################################################
-
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -177,17 +176,48 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         
-        W1 = self.params['W1']
-        b1 = self.params['b1']
-        W2 = self.params['W2']
-        b2 = self.params['b2']
+        ############################################################################
+        #   Input:         D     h[0]   ...    h[L-3]    h[L-2]     C              #
+        #                  |      |              |        |                        #
+        #   weights:       w1    w2     ...     wL-1      wL        -              #
+        #                  |      |              |        |                        #
+        #   Output:       h[0]   h[1]   ...    h[L-2]     C         C              #
+        #                                                 ^scores   ^softmax       #
+        #   No.layer:      1      2             L-1       L         不计入layer数   # 
+        #   Batchnorm：   Yes    Yes            Yes       No        No             #
+        ############################################################################        
+        L = self.num_layers
+        caches = {}
+        out = X
+        last_layer = False
         
-        # affine relu layer
-        aff_relu_out, aff_relu_cache = affine_relu_forward(X, W1, b1)
+        for layer in range(L):
+            w = self.params[f'W{layer+1}']
+            b = self.params[f'b{layer+1}']
+            
+            # normalization or not
+            if self.normalization == 'batchnorm':
+                bn_param = self.bn_params[layer]
+                gamma = self.params[f'gamma{layer+1}']
+                beta = self.params[f'beta{layer+1}']
+            else:
+                bn_param = gamma = beta = None
+                
+            # dropout or not
+            if self.use_dropout:
+                p = self.dropout_param['p']
+            else:
+                p = None
+            
+            # last layer or not
+            if layer == L-1:
+                last_layer = True
+                
+            # do one layer forward
+            out, caches[layer+1] = classic_layer_forward(out, w, b, gamma, beta, bn_param, p, last_layer)
         
-        # the second affine layer
-        scores, aff_2nd_cache = affine_forward(aff_relu_out, W2, b2)
-        pass
+        # book scores
+        scores = out
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -213,20 +243,25 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        loss, dx_scores = softmax_loss(scores, y)
-        loss += 0.5 * self.reg * (np.sum(W1**2) + np.sum(W2**2))
+        loss, dscores = softmax_loss(scores, y)
         
-        dx_aff2, dW2, db2 = affine_backward(dx_scores, aff_2nd_cache)
-        dx_aff_relu, dW1, db1 = affine_relu_backward(dx_aff2, aff_relu_cache)
+        # compute loss, with L2 regularization
+        for layer in range(L):
+            W = self.params[f'W{layer+1}']
+            loss += 0.5 * self.reg * (np.sum(W**2))
         
-        dW2 += self.reg * W2
-        dW1 += self.reg * W1
-        
-        grads['W1'] = dW1
-        grads['b1'] = db1
-        grads['W2'] = dW2
-        grads['b2'] = db2
-        pass
+        dout = dscores
+        for layer in reversed(range(L)):            
+            cache = caches[layer+1]  # index rule of cache is the same as index of weights
+            # layer backward
+            dout, dw, db, dgamma, dbeta = classic_layer_backward(dout, cache)
+            # update gradients
+            grads[f'W{layer+1}'] = dw + self.reg * self.params[f'W{layer+1}']
+            grads[f'b{layer+1}'] = db
+            
+            if self.normalization == 'batchnorm' and layer < L-1:
+                grads[f'gamma{layer+1}'] = dgamma
+                grads[f'beta{layer+1}'] = dbeta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

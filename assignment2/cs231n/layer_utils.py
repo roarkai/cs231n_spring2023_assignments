@@ -28,7 +28,48 @@ def affine_relu_backward(dout, cache):
 
 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-pass
+def classic_layer_forward(x, w, b, gamma, beta, bn_param, p, last_layer_flag):
+    
+    # optimal cache initiation
+    dp_cache = bn_cache = relu_cache = None
+    
+    # must do affine
+    out, fc_cache = affine_forward(x, w, b)
+    
+    if not last_layer_flag:
+        # relu or not
+        out, relu_cache = relu_forward(out)   
+        # batchnorm or not
+        if bn_param is not None:
+            out, bn_cache = batchnorm_forward(out, gamma, beta, bn_param)
+        # dropout or not
+        if p is not None:
+            out, dp_cache = dropout_forward(out, p)
+
+    cache = (fc_cache, relu_cache, bn_cache, dp_cache)    # package cache for backward
+    return out, cache
+
+def classic_layer_backward(dout, cache):
+    
+    fc_cache, relu_cache, bn_cache, dp_cache = cache # get cache for each layer
+    dgamma = dbeta = None
+    
+    # dropout or not
+    if dp_cache is not None:
+        dout = dropout_backward(dout, dp_cache)
+
+    # batchnorm or not
+    if bn_cache is not None:
+        dout, dgamma, dbeta = batchnorm_backward(dout, bn_cache)
+    
+    # relu or not
+    if relu_cache is not None:
+        dout = relu_backward(dout, relu_cache)
+    
+    # must do affine
+    dx, dw, db = affine_backward(dout, fc_cache)
+    
+    return dx, dw, db, dgamma, dbeta
 
 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
