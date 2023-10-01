@@ -68,7 +68,12 @@ def sgd_momentum(w, dw, config=None):
     # the next_w variable. You should also use and update the velocity v.     #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    
+    lr = config['learning_rate']
+    momentum = config['momentum']
+    
+    v = momentum * v - lr * dw
+    next_w = w + v
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -106,8 +111,13 @@ def rmsprop(w, dw, config=None):
     # config['cache'].                                                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+    lr = config['learning_rate']
+    eps = config['epsilon']
+    decay_rate = config['decay_rate']
+    
+    config['cache'] = decay_rate * config['cache'] + (1 - decay_rate) * dw * dw
+    next_w = w - lr * dw / (np.sqrt(config['cache']) + eps)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -151,7 +161,25 @@ def adam(w, dw, config=None):
     # using it in any calculations.                                           #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    
+    beta1 = config['beta1']
+    beta2 = config['beta2']
+    lr = config['learning_rate']
+    eps = config['epsilon']
+    
+    moment1 = config['m']
+    moment2 = config['v']
+    config['t'] += 1
+    t = config['t']
+    
+    moment1 = beta1 * moment1 + (1-beta1) * dw
+    moment2 = beta2 * moment2 + (1-beta2) * dw * dw
+    moment1_unbias = moment1 / (1 - beta1**t)
+    moment2_unbias = moment2 / (1 - beta2**t)
+    next_w = w - lr * moment1_unbias / (np.sqrt(moment2_unbias) + eps)
+    config['m'] = moment1
+    config['v'] = moment2
+    
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
