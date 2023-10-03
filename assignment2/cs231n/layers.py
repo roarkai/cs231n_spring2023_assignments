@@ -250,7 +250,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****       
+        
         batch_mean = np.mean(x, axis=0)
         batch_var = np.mean((x - batch_mean) ** 2, axis=0)
         batch_std_var = np.sqrt(batch_var + eps)
@@ -276,7 +277,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****      
+        
         normed_x = (x - running_mean) / np.sqrt(running_var + eps)
         out = normed_x * gamma + beta
         pass
@@ -348,7 +350,8 @@ def batchnorm_backward(dout, cache):
     #  · partial_L2var2x = partial_L2var * d_var2x
     #                    = -normed_x * (np.sum(normed_x*dnorm, axis=0) / (N * std_x)
     # 
-    ###########################################################################
+    ###########################################################################    
+    
     x, normed_x, std_var, gamma = cache
     N = x.shape[0]
     
@@ -356,7 +359,6 @@ def batchnorm_backward(dout, cache):
     partial_L2x = 1 / std_var * dnorm
     partial_L2mean2x = -np.sum(dnorm, axis=0) * np.ones(x.shape) / (N * std_var)
     partial_L2var2x = -normed_x * np.sum(normed_x * dnorm, axis=0) / (N * std_var)
-    
     dx = partial_L2x + partial_L2mean2x + partial_L2var2x
     
     dgamma = np.sum(normed_x * dout, axis=0)
@@ -398,7 +400,6 @@ def batchnorm_backward_alt(dout, cache):
     partial_1 = dnorm
     partial_2 = -np.sum(dnorm, axis=0) * np.ones(x.shape) / N
     partial_3 = -normed_x * np.sum(normed_x * dnorm, axis=0) / N
-    
     dx = (partial_1 + partial_2 + partial_3) / std_var
     
     dgamma = np.sum(normed_x * dout, axis=0)
