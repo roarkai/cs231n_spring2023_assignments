@@ -145,16 +145,35 @@ def softmax_loss(x, y):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     N = y.shape[0]
-    exp = np.exp(x - x.max(axis=1).reshape(-1, 1)) # 对梯度没有影响，相当于让exp每个元素都除常数exp(x.max)
-    prob = exp / exp.sum(axis=1).reshape(-1, 1)
-    prob_correct = prob[range(N), y]
-    loss = -np.sum(np.log(prob_correct)) / N
     
-    partial_prob_correct = -1 / prob_correct
-    partial_prob_over_score = -prob * prob_correct.reshape(-1, 1)
-    partial_prob_over_score[range(N), y] += prob_correct
-    dx = partial_prob_correct.reshape(-1, 1) * partial_prob_over_score / N
-    pass
+    # 调整x，避免overflow，对梯度没影响，相当于让exp每个元素都除常数exp(x.max)
+    adj_x = x - np.max(x, axis=1).reshape(-1, 1)
+    exp = np.exp(adj_x)
+    normalization = np.sum(exp, axis=1).reshape(-1, 1)
+    
+    # 取correct_x直接计算loss，避免underflow
+    adj_correct_score = adj_x[range(N), y]
+    loss = -(np.sum(adj_correct_score) - np.sum(np.log(normalization))) / N
+    
+    # 计算dx
+    d_correct_score = np.zeros(x.shape)
+    d_correct_score[range(N), y] = 1
+    dx = -exp / normalization + d_correct_score
+    dx *= -1 / N
+
+    ################################
+    # rk's note:                   #
+    #    下面这种方式会产生underflow  #
+    ################################
+    # exp = np.exp(x - np.max(x, axis=1).reshape(-1, 1)) # 对梯度没影响，相当于让exp各元素除常数exp(x.max)
+    # prob = exp / exp.sum(axis=1).reshape(-1, 1)
+    # prob_correct = prob[range(N), y]
+    # loss = -np.sum(np.log(prob_correct)) / N
+    
+    # partial_prob_correct = -1 / prob_correct
+    # partial_prob_over_score = -prob * prob_correct.reshape(-1, 1)
+    # partial_prob_over_score[range(N), y] += prob_correct
+    # dx = partial_prob_correct.reshape(-1, 1) * partial_prob_over_score / N
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -233,7 +252,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         batch_mean = np.mean(x, axis=0)
-        batch_std_var = np.sqrt(np.mean((x - batch_mean) ** 2, axis=0) + eps)
+        batch_var = np.mean((x - batch_mean) ** 2, axis=0)
+        batch_std_var = np.sqrt(batch_var + eps)
         normed_x = (x - batch_mean) / batch_std_var
         out = normed_x * gamma + beta
         
@@ -333,20 +353,18 @@ def batchnorm_backward(dout, cache):
     N = x.shape[0]
     
     dnorm = gamma * dout
-    partial_L2x = 1 / sta_var * dnorm
-    partial_L2mean2x = -np.sum(dnorm, axis=0) * np.ones(x.shape) / (N * sta_var)
-    partial_L2var2x = -normed_x * np.sum(normed_x * dnorm, axis=0) / (N * sta_var)
+    partial_L2x = 1 / std_var * dnorm
+    partial_L2mean2x = -np.sum(dnorm, axis=0) * np.ones(x.shape) / (N * std_var)
+    partial_L2var2x = -normed_x * np.sum(normed_x * dnorm, axis=0) / (N * std_var)
     
     dx = partial_L2x + partial_L2mean2x + partial_L2var2x
     
     dgamma = np.sum(normed_x * dout, axis=0)
     dbeta = np.sum(dout, axis=0)
-
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-
     return dx, dgamma, dbeta
 
 
@@ -377,12 +395,11 @@ def batchnorm_backward_alt(dout, cache):
     N = x.shape[0]
     
     dnorm = gamma * dout
-    
     partial_1 = dnorm
     partial_2 = -np.sum(dnorm, axis=0) * np.ones(x.shape) / N
     partial_3 = -normed_x * np.sum(normed_x * dnorm, axis=0) / N
     
-    dx = (partial_1 + partial_2 + partial_3) / sta_var
+    dx = (partial_1 + partial_2 + partial_3) / std_var
     
     dgamma = np.sum(normed_x * dout, axis=0)
     dbeta = np.sum(dout, axis=0)
@@ -509,7 +526,7 @@ def dropout_forward(x, dropout_param):
         # Store the dropout mask in the mask variable.                        #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-        mask = np.random.uniform(x.shape)
+        mask = np.random.uniform(0, 1, size=x.shape)
         mask = (mask < p) / p
         out = mask * x
         pass
