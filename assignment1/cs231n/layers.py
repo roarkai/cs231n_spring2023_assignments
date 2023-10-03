@@ -816,15 +816,35 @@ def softmax_loss(x, y):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     N = y.shape[0]
-    exp = np.exp(x - x.max(axis=1).reshape(-1, 1)) # 对梯度没有影响，相当于让exp每个元素都除常数exp(x.max)
-    prob = exp / exp.sum(axis=1).reshape(-1, 1)
-    prob_correct = prob[range(N), y]
-    loss = -np.sum(np.log(prob_correct)) / N
     
-    partial_prob_correct = -1 / prob_correct
-    partial_prob_over_score = -prob * prob_correct.reshape(-1, 1)
-    partial_prob_over_score[range(N), y] += prob_correct
-    dx = partial_prob_correct.reshape(-1, 1) * partial_prob_over_score / N
+    # 调整x，避免overflow，对梯度没影响，相当于让exp每个元素都除常数exp(x.max)
+    adj_x = x - np.max(x, axis=1).reshape(-1, 1)
+    exp = np.exp(adj_x)
+    normalization = np.sum(exp, axis=1).reshape(-1, 1)
+    
+    # 取correct_x直接计算loss，避免underflow
+    adj_correct_score = adj_x[range(N), y]
+    loss = -(np.sum(adj_correct_score) - np.sum(np.log(normalization))) / N
+    
+    # 计算dx
+    d_correct_score = np.zeros(x.shape)
+    d_correct_score[range(N), y] = 1
+    dx = -exp / normalization + d_correct_score
+    dx *= -1 / N
+
+    ################################
+    # rk's note:                   #
+    #    下面这种方式会产生underflow  #
+    ################################
+    # exp = np.exp(x - np.max(x, axis=1).reshape(-1, 1)) # 对梯度没影响，相当于让exp各元素除常数exp(x.max)
+    # prob = exp / exp.sum(axis=1).reshape(-1, 1)
+    # prob_correct = prob[range(N), y]
+    # loss = -np.sum(np.log(prob_correct)) / N
+    
+    # partial_prob_correct = -1 / prob_correct
+    # partial_prob_over_score = -prob * prob_correct.reshape(-1, 1)
+    # partial_prob_over_score[range(N), y] += prob_correct
+    # dx = partial_prob_correct.reshape(-1, 1) * partial_prob_over_score / N
     
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
