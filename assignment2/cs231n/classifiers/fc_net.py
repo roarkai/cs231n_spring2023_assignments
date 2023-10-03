@@ -84,8 +84,8 @@ class FullyConnectedNet(object):
             
             # initializa beta and gamma for batchnorm
             if self.normalization == 'batchnorm' and ind < self.num_layers - 1:
-                self.params[f'beta{ind + 1}'] = np.ones(output_dim)
-                self.params[f'gamma{ind + 1}'] = np.zeros(output_dim)
+                self.params[f'gamma{ind + 1}'] = np.ones(output_dim)
+                self.params[f'beta{ind + 1}'] = np.zeros(output_dim)
         
         # 注意层数关系：
         # num_layers = L = len(hidden_layer) + 1，因为除了hidden layer之外还有一层affine
@@ -196,7 +196,7 @@ class FullyConnectedNet(object):
             b = self.params[f'b{layer+1}']
             
             # normalization or not
-            if self.normalization == 'batchnorm':
+            if self.normalization == 'batchnorm' and layer < L-1:
                 bn_param = self.bn_params[layer]
                 gamma = self.params[f'gamma{layer+1}']
                 beta = self.params[f'beta{layer+1}']
@@ -204,17 +204,18 @@ class FullyConnectedNet(object):
                 bn_param = gamma = beta = None
                 
             # dropout or not
-            if self.use_dropout:
+            if self.use_dropout and layer < L-1:
                 p = self.dropout_param['p']
+                dp_param = self.dropout_param
             else:
-                p = None
+                dp_param = None
             
             # last layer or not
             if layer == L-1:
                 last_layer = True
                 
             # do one layer forward
-            out, caches[layer+1] = classic_layer_forward(out, w, b, gamma, beta, bn_param, p, last_layer)
+            out, caches[layer+1] = classic_layer_forward(out, w, b, gamma, beta, bn_param, dp_param, last_layer)
         
         # book scores
         scores = out
