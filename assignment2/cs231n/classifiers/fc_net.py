@@ -82,8 +82,8 @@ class FullyConnectedNet(object):
             self.params[f'W{ind + 1}'] = np.random.randn(input_dim, output_dim) * weight_scale
             self.params[f'b{ind + 1}'] = np.zeros(output_dim)
             
-            # initializa beta and gamma for batchnorm
-            if self.normalization == 'batchnorm' and ind < self.num_layers - 1:
+            # initializa beta and gamma for batchnorm and layernorm
+            if self.normalization and ind < self.num_layers - 1: 
                 self.params[f'gamma{ind + 1}'] = np.ones(output_dim)
                 self.params[f'beta{ind + 1}'] = np.zeros(output_dim)
         
@@ -126,7 +126,7 @@ class FullyConnectedNet(object):
         self.bn_params = []
         if self.normalization == "batchnorm":
             self.bn_params = [{"mode": "train"} for i in range(self.num_layers - 1)]
-        if self.normalization == "layernorm":
+        if self.normalization == "layernorm":  # rk's: layernorm不用区分train和test，每层的bn_params为空
             self.bn_params = [{} for i in range(self.num_layers - 1)]
 
         # Cast all parameters to the correct datatype.
@@ -195,9 +195,9 @@ class FullyConnectedNet(object):
             w = self.params[f'W{layer+1}']
             b = self.params[f'b{layer+1}']
             
-            # normalization or not
-            if self.normalization == 'batchnorm' and layer < L-1:
-                bn_param = self.bn_params[layer]
+            # normalization or not, batchnorm和layernorm都要取gamma和beta参数
+            if self.normalization and layer < L-1:
+                bn_param = self.bn_params[layer]  # layernorm取到的是{},batchnorm的是{"mode":<value>}
                 gamma = self.params[f'gamma{layer+1}']
                 beta = self.params[f'beta{layer+1}']
             else:
@@ -260,7 +260,8 @@ class FullyConnectedNet(object):
             grads[f'W{layer+1}'] = dw + self.reg * self.params[f'W{layer+1}']
             grads[f'b{layer+1}'] = db
             
-            if self.normalization == 'batchnorm' and layer < L-1:
+            # batchnorm和layernorm都要更新gamma和beta
+            if self.normalization and layer < L-1:
                 grads[f'gamma{layer+1}'] = dgamma
                 grads[f'beta{layer+1}'] = dbeta
 

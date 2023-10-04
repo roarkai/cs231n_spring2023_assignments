@@ -447,7 +447,14 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+ 
+    mean = np.mean(x, axis=1).reshape(-1, 1)
+    var = np.var(x, axis=1).reshape(-1, 1)
+    std_var = np.sqrt(var + eps)
+    normed_x = (x - mean) / std_var
+    
+    out = normed_x * gamma + beta
+    cache = (x, normed_x, std_var, gamma)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -481,7 +488,18 @@ def layernorm_backward(dout, cache):
     # still apply!                                                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    
+    x, normed_x, std_var, gamma = cache
+    D = x.shape[1]  # 这里要用D，而不是N
+    
+    dnorm = gamma * dout
+    partial_1 = dnorm
+    partial_2 = -np.sum(dnorm, axis=1).reshape(-1, 1) * np.ones(x.shape) / D
+    partial_3 = -normed_x * np.sum(normed_x * dnorm, axis=1).reshape(-1, 1) / D
+    dx = (partial_1 + partial_2 + partial_3) / std_var    
 
+    dgamma = np.sum(dout * normed_x, axis=0)
+    dbeta = np.sum(dout, axis=0)
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****

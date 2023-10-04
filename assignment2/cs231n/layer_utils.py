@@ -31,7 +31,7 @@ def affine_relu_backward(dout, cache):
 def classic_layer_forward(x, w, b, gamma, beta, bn_param, dp_param, last_layer_flag):
     
     # optimal cache initiation
-    dp_cache = bn_cache = relu_cache = None
+    dp_cache = bn_cache = ln_cache = relu_cache = None
     
     # must do affine
     out, fc_cache = affine_forward(x, w, b)
@@ -39,7 +39,10 @@ def classic_layer_forward(x, w, b, gamma, beta, bn_param, dp_param, last_layer_f
     if not last_layer_flag:
         # batchnorm or not
         if bn_param is not None:
-            out, bn_cache = batchnorm_forward(out, gamma, beta, bn_param)
+            if 'mode' in bn_param:
+                out, bn_cache = batchnorm_forward(out, gamma, beta, bn_param)
+            else:
+                out, ln_cache = layernorm_forward(out, gamma, beta, bn_param)
             
         # relu or not
         out, relu_cache = relu_forward(out)     
@@ -48,12 +51,12 @@ def classic_layer_forward(x, w, b, gamma, beta, bn_param, dp_param, last_layer_f
         if dp_param is not None:
             out, dp_cache = dropout_forward(out, dp_param)
 
-    cache = (fc_cache, relu_cache, bn_cache, dp_cache)    # package cache for backward
+    cache = (fc_cache, relu_cache, bn_cache, ln_cache, dp_cache)    # package cache for backward
     return out, cache
 
 def classic_layer_backward(dout, cache):
     
-    fc_cache, relu_cache, bn_cache, dp_cache = cache # get cache for each layer
+    fc_cache, relu_cache, bn_cache, ln_cache, dp_cache = cache # get cache for each layer
     dgamma = dbeta = None
     
     # dropout or not
@@ -67,6 +70,8 @@ def classic_layer_backward(dout, cache):
     # batchnorm or not
     if bn_cache is not None:
         dout, dgamma, dbeta = batchnorm_backward(dout, bn_cache)
+    elif ln_cache is not None:
+        dout, dgamma, dbeta = layernorm_backward(dout, ln_cache)
         
     # must do affine
     dx, dw, db = affine_backward(dout, fc_cache)
