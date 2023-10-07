@@ -633,7 +633,26 @@ def conv_forward_naive(x, w, b, conv_param):
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    N, C, H, W = x.shape
+    F, _, HH, WW = w.shape
+    P, S = conv_param['pad'], conv_param['stride']
+    
+    # x的pad方式：维度为N和C的那两个维度不pad，维度为H和W的两个维度前后pad的数量是P
+    x_pad = np.pad(x, ((0, 0), (0, 0), (P, P), (P, P)), 'constant', constant_values=0)
+    _, _, Hpad, Wpad = x_pad.shape
+    Hout = (Hpad - HH) // S + 1
+    Wout = (Wpad - WW) // S + 1
+    out = np.zeros((N, F, Hout, Wout))
+    
+    # 将filters变成二维，每一维是一个filter, 每个filter的维度是：dim_f2D = C*HH*WW
+    # w_2D.shape = (dim_f2D, F)
+    w_2D = w.reshape(F, -1).T
+    
+    # 遍历output的各个position，每次计算1个position的值
+    for i in range(Hout):       # i是row index，j增加表示往下1行
+        for j in range(Wout):   # j是column index, i增加表示往右1列
+            patch_ij = x_pad[:, :, i*S:(i*S+WW), j*S:(j*S+HH)].reshape(N, -1)
+            out[:, :, i, j] = patch_ij @ w_2D + b
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -663,6 +682,39 @@ def conv_backward_naive(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
+
+    x, w, b, conv_param = cache
+
+    # 取各维度的值
+    P, S = conv_param['pad'], conv_param['stride']
+    N, F, Hout, Wout = dout.shape
+    _, C, H, W = x.shape
+    _, _, HH, WW = w.shape
+    
+    # bias的shape是(F,)
+    db = np.sum(dout, axis=(0, 2, 3))
+    
+    # x的pad方式：维度为N和C的那两个维度不pad，维度为H和W的两个维度前后pad的数量是P
+    x_pad = np.pad(x, ((0, 0), (0, 0), (P, P), (P, P)), 'constant', constant_values=0)
+
+    # 初始化梯度值为0
+    dx = np.zeros(x.shape)            # x shape: N, C, H, W
+    dw = np.zeros(w.shape)            # w shape: F, C, HH, WW
+    dx_pad = np.zeros((x_pad.shape))   # x_pad shape: N, C, (H+2P), (W+2P)
+                      
+    # 将filters变成二维，每一维是一个filter, 每个filter的维度是：dim_f2D = C*HH*WW
+    # w_2D.shape = (F, dim_f2D)
+    w_2D = w.reshape(F, -1)
+
+    # 遍历output的各个position，每次计算1个position相对w的梯度，累加
+    for i in range(Hout):       # i是row index，j增加表示往下1行
+        for j in range(Wout):   # j是column index, i增加表示往右1列
+            patch_ij = x_pad[:, :, i*S:(i*S+WW), j*S:(j*S+HH)].reshape(N, -1)
+            dout_ij = dout[:, :, i, j]
+            dw += (dout_ij.T @ patch_ij).reshape(F, C, HH, WW)
+            dx_pad[:, :, i*S:(i*S+WW), j*S:(j*S+HH)] += (dout_ij @ w_2D).reshape(N, C, HH, WW)
+    
+    dx = dx_pad[:, :, P:(P+H), P:(P+W)]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -696,7 +748,18 @@ def max_pool_forward_naive(x, pool_param):
     # TODO: Implement the max-pooling forward pass                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    N, C, H, W = x.shape
+    Hpool = pool_param['pool_height']
+    Wpool = pool_param['pool_width']
+    S = pool_param['stride']
+    Hout = 1 + (H - Hpool) // S  # column number
+    Wout = 1 + (W - Wpool) // S  # row number
+    
+    out = np.zeros((N, C, Hout, Wout))
+    for i in range(Hout):        # i是row index，j增加表示往下1行
+        for j in range(Wout):    # j是column index, i增加表示往右1列
+            patch_ij = x[:, :, i*S:(i*S+Wpool), j*S:(j*S+Hpool)]
+            out[:, :, i, j] = np.max(patch_ij, axis=(2, 3))
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -722,8 +785,24 @@ def max_pool_backward_naive(dout, cache):
     # TODO: Implement the max-pooling backward pass                           #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    x, pool_param  = cache
+    Hpool = pool_param['pool_height']
+    Wpool = pool_param['pool_width']
+    S = pool_param['stride']
+    N, C, Hout, Wout = dout.shape
+    _, _, H, W = x.shape
+    
+    dx = np.zeros(x.shape)
+    for i in range(Hout):        # i是row index，j增加表示往下1行
+        for j in range(Wout):    # j是column index, i增加表示往右1列
+            [n, c] = np.indices((N, C))
+            # 为符合np.argmax的参数规则，改变patch形状
+            patch_ij = x[:, :, i*S:(i*S+Hpool), j*S:(j*S+Wpool)].reshape(N, C, -1)
+            k, l = np.unravel_index(np.argmax(patch_ij, axis=-1), (Hpool, Wpool))
+            dx[n, c, i*S+k, j*S+l] += dout[n, c, i, j]
 
     pass
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
