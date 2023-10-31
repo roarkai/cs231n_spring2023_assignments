@@ -33,8 +33,32 @@ def compute_saliency_maps(X, y, model):
     # the gradients with a backward pass.                                        #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    
+    # 解题关键：
+    #  1.每个input image只对output上1个元素求导，backward，grad和Jacobian都不支持该运算
+    #  2.但每个input image对其他元素的梯度是0，先对output求Jacobian，sum掉dim=0或1即可
+    #  3.Jacobian加上sum(dim=0)的操作相当于vjp：v = torch.ones_like(y)
+    #  4.同理，autograd.grad和backward也可以解决
+    
+    # （1）用jacobian：要构建一个wrapper
+    def wrap_score(x):
+        score = model(x)
+        return score.gather(1, y.view(-1, 1)).squeeze()
+    saliency = (torch.autograd.functional.jacobian(wrap_score, X)).sum(dim=0)
+    saliency, _ = saliency.abs().max(dim=1)
+    
+#     # （2）用grad：注意torch.autograd.grad和tensor.max返回tuple
+#     score = model(X)
+#     y_score = score.gather(1, y.view(-1, 1)).squeeze()
+#     saliency, = torch.autograd.grad(y_score, X, grad_outputs=torch.ones_like(y))
+#     saliency, _ = saliency.abs().max(dim=1)
 
-    pass
+#     # （3）用backward：注意要detach
+#     score = model(X)
+#     y_score = score.gather(1, y.view(-1, 1)).squeeze()
+#     y_score.backward(gradient=torch.ones_like(y))
+#     saliency = X.grad.detach()
+#     saliency, _ = saliency.abs().max(dim=1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -75,7 +99,22 @@ def make_fooling_image(X, target_y, model):
     # You can print your progress over iterations to check your algorithm.       #
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    num_iter = 0
+    while num_iter < 100:
+        num_iter += 1
+        scores = model(X_fooling)
+        
+        pred_y = scores.data.max(1)[1][0].item()
+        if target_y == pred_y:
+            break
+        
+        target_score = scores[0, target_y]
+        target_score.backward()
+        with torch.no_grad():
+            X_fooling += learning_rate * X_fooling.grad / X_fooling.grad.norm()
+            X_fooling.grad.zero_()
+        
+    print(num_iter) 
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -93,7 +132,12 @@ def class_visualization_update_step(img, model, target_y, l2_reg, learning_rate)
     # Be very careful about the signs of elements in your code.            #
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+    scores = model(img)
+    target_score = scores[0, target_y] - l2_reg * img.square().sum()
+    target_score.backward()
+    with torch.no_grad():
+        img += learning_rate * img.grad / img.grad.norm()
+        img.grad.zero_()
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
